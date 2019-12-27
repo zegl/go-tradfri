@@ -80,46 +80,64 @@ func (t *Tradfri) Info() (*GatewayInfo, error) {
 	return &gateway, nil
 }
 
-func (t *Tradfri) Devices() ([]string, error) {
-	return t.GetAsIDs("/15001")
+func (t *Tradfri) Devices() ([]int, error) {
+	var devices []int
+
+	if err := t.GetAsJson("/15001", &devices); err != nil {
+		return nil, err
+	}
+
+	return devices, nil
 }
 
-func (t *Tradfri) Device(deviceID string) (*DeviceInfo, error) {
+func (t *Tradfri) Device(deviceID int) (*DeviceInfo, error) {
 	var device DeviceInfo
 
-	if err := t.GetAsJson("/15001/"+deviceID, &device); err != nil {
+	if err := t.GetAsJson(fmt.Sprintf("/15001/%d", deviceID), &device); err != nil {
 		return nil, err
 	}
 
 	return &device, nil
 }
 
-func (t *Tradfri) UpdateDevice(deviceID string, settings DeviceSettings) error {
-	return t.PutJsonChange("/15001/"+deviceID, settings)
+func (t *Tradfri) UpdateDevice(deviceID int, settings DeviceSettings) error {
+	return t.PutJsonChange(fmt.Sprintf("/15001/%d", deviceID), settings)
 }
 
-func (t *Tradfri) Groups() ([]string, error) {
-	return t.GetAsIDs("/15004")
+func (t *Tradfri) Groups() ([]int, error) {
+	var groups []int
+
+	if err := t.GetAsJson("/15004", &groups); err != nil {
+		return nil, err
+	}
+
+	return groups, nil
 }
 
-func (t *Tradfri) Group(groupID string) (*GroupInfo, error) {
+func (t *Tradfri) Group(groupID int) (*GroupInfo, error) {
 	var group GroupInfo
 
-	if err := t.GetAsJson("/15004/"+groupID, &group); err != nil {
+	if err := t.GetAsJson(fmt.Sprintf("/15004/%d", groupID), &group); err != nil {
 		return nil, err
 	}
 
 	return &group, nil
 }
 
-func (t *Tradfri) Scenes(groupID string) ([]string, error) {
-	return t.GetAsIDs("/15005/" + groupID)
+func (t *Tradfri) Scenes(groupID int) ([]int, error) {
+	var scenes []int
+
+	if err := t.GetAsJson(fmt.Sprintf("/15005/%d", groupID), &scenes); err != nil {
+		return nil, err
+	}
+
+	return scenes, nil
 }
 
-func (t *Tradfri) Scene(groupID, sceneID string) (*SceneInfo, error) {
+func (t *Tradfri) Scene(groupID, sceneID int) (*SceneInfo, error) {
 	var scene SceneInfo
 
-	if err := t.GetAsJson("/15005/"+groupID+"/"+sceneID, &scene); err != nil {
+	if err := t.GetAsJson(fmt.Sprintf("/15005/%d/%d", groupID, sceneID), &scene); err != nil {
 		return nil, err
 	}
 
@@ -163,40 +181,6 @@ func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
 	//println(string(message.Payload))
 
 	return &message, nil
-}
-
-func (t *Tradfri) GetAsIDs(path string) ([]string, error) {
-	request := coap.Message{
-		Type:      coap.Confirmable,
-		Code:      coap.GET,
-		MessageID: t.MessageID(),
-	}
-
-	request.SetPathString(path)
-
-	message, err := t.RoundTrip(request)
-
-	if err != nil {
-		return nil, err
-	}
-
-	if message.Code != coap.Content {
-		return nil, errors.New("response is not of type content")
-	}
-
-	var data []int
-
-	if err := json.Unmarshal(message.Payload, &data); err != nil {
-		return nil, err
-	}
-
-	ids := make([]string, 0)
-
-	for _, id := range data {
-		ids = append(ids, fmt.Sprintf("%d", id))
-	}
-
-	return ids, nil
 }
 
 func (t *Tradfri) GetAsJson(path string, out interface{}) error {
