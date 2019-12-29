@@ -155,10 +155,12 @@ func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
 	payload, err := request.MarshalBinary()
 
 	if err != nil {
+		println("marshal error: " + err.Error())
 		return nil, err
 	}
 
 	if _, err = t.client.Write(payload); err != nil {
+		println("write error: " + err.Error())
 		return nil, err
 	}
 
@@ -175,8 +177,15 @@ func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
 	message, err := coap.ParseMessage(data)
 
 	if err != nil {
+		println("parse error: " + err.Error())
 		return nil, err
 	}
+
+	if request.MessageID != message.MessageID {
+		return nil, errors.New("unexpected message id in response")
+	}
+
+	time.Sleep(100 * time.Millisecond)
 
 	//println(string(message.Payload))
 
