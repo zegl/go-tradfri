@@ -16,7 +16,10 @@ import (
 type Tradfri struct {
 	client *dtls.Conn
 
-	msgID uint32
+	closed bool
+
+	msgID    uint32
+	messages []coap.Message
 }
 
 func New(address, id string, psk []byte) (*Tradfri, error) {
@@ -53,9 +56,15 @@ func New(address, id string, psk []byte) (*Tradfri, error) {
 		return nil, err
 	}
 
-	return &Tradfri{
+	t := Tradfri{
 		client: client,
-	}, nil
+
+		messages: make([]coap.Message, 0),
+	}
+
+	go t.read()
+
+	return &t, nil
 }
 
 func (t *Tradfri) Close() {
@@ -159,32 +168,17 @@ func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
 		return nil, err
 	}
 
-	data := make([]byte, 65*1024)
-
-	count, err := t.client.Read(data)
-
-	if err != nil {
-		println("read error: " + err.Error())
-		return nil, err
-	}
-
-	data = append([]byte(nil), data[:count]...)
-
-	message, err := coap.ParseMessage(data)
+	message, err := t.readMessage(request.MessageID)
 
 	if err != nil {
 		println("unmarshal error: " + err.Error())
 		return nil, err
 	}
 
-	if request.MessageID != message.MessageID {
-		return nil, errors.New("unexpected message id in response")
-	}
-
 	//time.Sleep(100 * time.Millisecond)
 	//println(string(message.Payload))
 
-	return &message, nil
+	return message, nil
 }
 
 func (t *Tradfri) GetAsJson(path string, out interface{}) error {
@@ -241,4 +235,41 @@ func (t *Tradfri) PutJsonChange(path string, data interface{}) error {
 	}
 
 	return nil
+}
+
+func (t *Tradfri) readMessage(id uint16) (*coap.Message, error) {
+	for i := 0; i < 10; i++ {
+		for _, message := range t.messages {
+			if message.MessageID == id {
+				return &message, nil
+			}
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return nil, errors.New("message not read (yet)")
+}
+
+func (t *Tradfri) read() {
+	for !t.closed {
+		data := make([]byte, 65*1024)
+
+		count, err := t.client.Read(data)
+
+		if err != nil {
+			println("read error: " + err.Error())
+			continue
+		}
+
+		data = append([]byte(nil), data[:count]...)
+		message, err := coap.ParseMessage(data)
+
+		if err != nil {
+			println("unmarshal error: " + err.Error())
+			continue
+		}
+
+		t.messages = append(t.messages, message)
+	}
 }
