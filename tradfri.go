@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -18,8 +19,10 @@ type Tradfri struct {
 
 	closed bool
 
-	msgID    uint32
-	messages []coap.Message
+	messageID uint32
+
+	messages      map[uint16]coap.Message
+	messagesMutex sync.Mutex
 }
 
 func New(address, id string, psk []byte) (*Tradfri, error) {
@@ -59,7 +62,7 @@ func New(address, id string, psk []byte) (*Tradfri, error) {
 	t := Tradfri{
 		client: client,
 
-		messages: make([]coap.Message, 0),
+		messages: make(map[uint16]coap.Message),
 	}
 
 	go t.read()
@@ -152,7 +155,7 @@ func (t *Tradfri) Scene(groupID, sceneID int) (*SceneInfo, error) {
 }
 
 func (t *Tradfri) MessageID() uint16 {
-	return uint16(atomic.AddUint32(&t.msgID, 1) % 0xffff)
+	return uint16(atomic.AddUint32(&t.messageID, 1) % 0xffff)
 }
 
 func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
@@ -238,14 +241,19 @@ func (t *Tradfri) PutJsonChange(path string, data interface{}) error {
 }
 
 func (t *Tradfri) readMessage(id uint16) (*coap.Message, error) {
-	for i := 0; i < 10; i++ {
-		for _, message := range t.messages {
-			if message.MessageID == id {
-				return &message, nil
-			}
+	for i := 0; i < 50; i++ {
+		message, ok := t.messages[id]
+
+		if !ok {
+			time.Sleep(10 * time.Millisecond)
+			continue
 		}
 
-		time.Sleep(50 * time.Millisecond)
+		t.messagesMutex.Lock()
+		delete(t.messages, id)
+
+		t.messagesMutex.Unlock()
+		return &message, nil
 	}
 
 	return nil, errors.New("message not read (yet)")
@@ -270,6 +278,9 @@ func (t *Tradfri) read() {
 			continue
 		}
 
-		t.messages = append(t.messages, message)
+		t.messagesMutex.Lock()
+		t.messages[message.MessageID] = message
+
+		t.messagesMutex.Unlock()
 	}
 }
