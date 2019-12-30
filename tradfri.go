@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -18,7 +17,6 @@ type Tradfri struct {
 	client *dtls.Conn
 
 	msgID uint32
-	mux   sync.Mutex
 }
 
 func New(address, id string, psk []byte) (*Tradfri, error) {
@@ -149,9 +147,6 @@ func (t *Tradfri) MessageID() uint16 {
 }
 
 func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
-	t.mux.Lock()
-	defer t.mux.Unlock()
-
 	payload, err := request.MarshalBinary()
 
 	if err != nil {
@@ -169,6 +164,7 @@ func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
 	count, err := t.client.Read(data)
 
 	if err != nil {
+		println("read error: " + err.Error())
 		return nil, err
 	}
 
@@ -177,7 +173,7 @@ func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
 	message, err := coap.ParseMessage(data)
 
 	if err != nil {
-		println("parse error: " + err.Error())
+		println("unmarshal error: " + err.Error())
 		return nil, err
 	}
 
