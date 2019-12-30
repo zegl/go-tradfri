@@ -3,12 +3,8 @@ package tradfri
 import (
 	"encoding/json"
 	"errors"
-	"net"
-	"strings"
-	"time"
 
 	"github.com/dustin/go-coap"
-	"github.com/pion/dtls/v2"
 )
 
 func PSK(address, id, code string) ([]byte, error) {
@@ -16,33 +12,10 @@ func PSK(address, id, code string) ([]byte, error) {
 		return nil, errors.New("invalid security code")
 	}
 
-	if !strings.Contains(address, ":") {
-		address = address + ":5684"
-	}
-
-	addr, err := net.ResolveUDPAddr("udp", address)
+	t, err := New(address, "Client_identity", []byte(code))
 
 	if err != nil {
 		return nil, err
-	}
-
-	config := &dtls.Config{
-		PSKIdentityHint: []byte("Client_identity"),
-		PSK: func(hint []byte) ([]byte, error) {
-			return []byte(code), nil
-		},
-		ConnectTimeout: dtls.ConnectTimeoutOption(30 * time.Second),
-		CipherSuites:   []dtls.CipherSuiteID{dtls.TLS_PSK_WITH_AES_128_CCM_8},
-	}
-
-	client, err := dtls.Dial("udp", addr, config)
-
-	if err != nil {
-		return nil, err
-	}
-
-	t := &Tradfri{
-		client: client,
 	}
 
 	defer t.Close()

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -74,6 +75,8 @@ func (t *Tradfri) Close() {
 	if t == nil {
 		return
 	}
+
+	t.closed = true
 
 	if t.client != nil {
 		t.client.Close()
@@ -267,6 +270,11 @@ func (t *Tradfri) read() {
 
 		if err != nil {
 			println("read error: " + err.Error())
+
+			if err == io.EOF {
+				break
+			}
+
 			continue
 		}
 
