@@ -185,8 +185,7 @@ func (t *Tradfri) RoundTrip(request coap.Message) (*coap.Message, error) {
 		return nil, errors.New("unexpected message id in response")
 	}
 
-	time.Sleep(100 * time.Millisecond)
-
+	//time.Sleep(100 * time.Millisecond)
 	//println(string(message.Payload))
 
 	return &message, nil
