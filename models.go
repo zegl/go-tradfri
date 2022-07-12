@@ -34,6 +34,7 @@ type DeviceInfo struct {
 		Serial       string      `json:"2"`
 		Firmware     string      `json:"3"`
 		PowerSource  PowerSource `json:"6"`
+		Battery      int         `json:"9"`
 	} `json:"3"`
 
 	Speaker *struct {
@@ -44,28 +45,52 @@ type DeviceInfo struct {
 	OutletSettings  []OutletSettings  `json:"3312"`
 	SwitchSettings  []SwitchSettings  `json:"15009"`
 	SpeakerSettings []SpeakerSettings `json:"15018"`
+	Sensors         []Sensor          `json:"3300"`
 
-	EpochCreated int64 `json:"9002"`
-	EpochUpdated int64 `json:"9020"`
+	EpochCreated   int64 `json:"9002"`
+	EpochUpdated   int64 `json:"9020"` // Last Seen?
+	Alive          int   `json:"9019"`
+	OtaUpdateState int   `json:"9054"`
+}
+
+type Sensor struct {
+	AppType                 string  `json:"5750"`
+	SensorType              string  `json:"5751"`
+	MinMeasuredValue        int64   `json:"5601"`
+	MaxMeasuredValue        int64   `json:"5602"`
+	MinRangeValue           int64   `json:"5603"`
+	MaxRangeValue           int64   `json:"5604"`
+	ResetMinMaxMeasureValue bool    `json:"5605"`
+	SensorValue             float64 `json:"5700"`
+	Unit                    string  `json:"5701"`
 }
 
 type DeviceType int
 
-const DeviceTypeSwitch DeviceType = 0
-const DeviceTypeBulb DeviceType = 2
-const DeviceTypeControlOutlet DeviceType = 3
-const DeviceTypeSoundRemote DeviceType = 8
+const (
+	DeviceTypeSwitch         DeviceType = 0 // Normal remotes
+	DeviceTypeSwitchSlave               = 1 // A remote paired with another remote (https://www.reddit.com/r/tradfri/comments/6x1miq)
+	DeviceTypeBulb                      = 2
+	DeviceTypeControlOutlet             = 3
+	DeviceTypeSensor                    = 4
+	DeviceTypeSignalRepeater            = 6
+	DeviceTypeBlind                     = 7
+	DeviceTypeSoundRemote               = 8 // Symfonisk
+	DeviceTypeAirPurifier               = 9 // Starkvind
+)
 
 type PowerSource int
 
-const PowerSourceDC PowerSource = 0
-const PowerSourceBatteryInternal PowerSource = 1
-const PowerSourceBatteryExternal PowerSource = 2
-const PowerSourceBattery PowerSource = 3
-const PowerSourceEthernet PowerSource = 4
-const PowerSourceUSB PowerSource = 5
-const PowerSourceAC PowerSource = 6
-const PowerSourceSolar PowerSource = 7
+const (
+	PowerSourceDC              PowerSource = 0
+	PowerSourceBatteryInternal             = 1
+	PowerSourceBatteryExternal             = 2
+	PowerSourceBattery                     = 3
+	PowerSourceEthernet                    = 4
+	PowerSourceUSB                         = 5
+	PowerSourceAC                          = 6
+	PowerSourceSolar                       = 7
+)
 
 type DeviceSettings struct {
 	LightSettings  []LightSettings  `json:"3311,omitempty"`

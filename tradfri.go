@@ -1,6 +1,7 @@
 package tradfri
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,8 +51,10 @@ func New(address, id string, psk []byte) (*Tradfri, error) {
 		PSK: func(hint []byte) ([]byte, error) {
 			return psk, nil
 		},
-		ConnectTimeout: dtls.ConnectTimeoutOption(30 * time.Second),
-		CipherSuites:   []dtls.CipherSuiteID{dtls.TLS_PSK_WITH_AES_128_CCM_8},
+		ConnectContextMaker: func() (context.Context, func()) {
+			return context.WithTimeout(context.Background(), 30*time.Second)
+		},
+		CipherSuites: []dtls.CipherSuiteID{dtls.TLS_PSK_WITH_AES_128_CCM_8},
 	}
 
 	client, err := dtls.Dial("udp", addr, config)
@@ -197,7 +200,6 @@ func (t *Tradfri) GetAsJson(path string, out interface{}) error {
 	request.SetPathString(path)
 
 	message, err := t.RoundTrip(request)
-
 	if err != nil {
 		return err
 	}
